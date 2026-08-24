@@ -1332,7 +1332,7 @@
           <div class="card-top">
             <div>
               <h3 class="card-title">${escapeHtml(property.title||"Wohnung ohne Titel")}</h3>
-              <div class="location">${escapeHtml(property.location||property.address||"Ort offen")}</div>
+              <div class="location">${escapeHtml(property.location||property.municipality||property.address||"Ort offen")}</div>
             </div>
             <div class="top-actions">
               <button class="favorite-btn ${ownFavorite?"active":""}" type="button" data-action="favorite" data-id="${property.id}" aria-label="Favorit">${bothFavorite?"💛":ownFavorite?"⭐":"☆"}</button>
@@ -1662,8 +1662,22 @@
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,90);
     }
 
+    function derivedListingUrl(item){
+      const explicit=item.listing_url||item.source_url||item.url||item.link||null;
+      if(explicit) return explicit;
+      const source=String(item.source||"").toLowerCase();
+      const sourceId=String(item.source_listing_id||"").trim();
+      if(source.includes("homegate")&&/^\d+$/.test(sourceId)){
+        return `https://www.homegate.ch/kaufen/${sourceId}`;
+      }
+      if(source.includes("immosky")&&/^\d+$/.test(sourceId)){
+        return `https://www.immosky.ch/de/kaufen-mieten/${sourceId}/`;
+      }
+      return null;
+    }
+
     function normalizeImportItem(item){
-      const listingUrl=item.listing_url||item.url||item.link||null;
+      const listingUrl=derivedListingUrl(item);
       const externalId=item.external_id||item.source_listing_id||
         (listingUrl?`url-${slugify(listingUrl)}`:`manual-${slugify(`${item.title}-${item.location}-${item.address}`)}`);
 
@@ -1672,21 +1686,21 @@
         source:item.source||null,
         source_listing_id:item.source_listing_id||null,
         title:item.title||"Wohnung ohne Titel",
-        location:item.location||item.ort||null,
-        municipality:item.municipality||null,
+        location:item.location||item.ort||item.city||item.municipality||null,
+        municipality:item.municipality||item.city||item.location||item.ort||null,
         canton:item.canton||null,
-        postal_code:item.postal_code?String(item.postal_code):null,
+        postal_code:item.postal_code||item.zip?String(item.postal_code||item.zip):null,
         address:item.address||item.adresse||null,
         latitude:item.latitude??item.lat??null,
         longitude:item.longitude??item.lng??item.lon??null,
-        price_chf:item.price_chf??item.price??null,
+        price_chf:item.total_price_chf??item.price_chf??item.purchase_price_chf??item.price??null,
         rooms:item.rooms??item.zimmer??null,
         living_area_m2:item.living_area_m2??item.area_m2??item.flaeche??null,
-        move_in:item.move_in||item.einzug||null,
+        move_in:item.move_in||item.einzug||item.availability||null,
         listing_url:listingUrl,
         minergie:item.minergie??null,
         minergie_details:item.minergie_details||null,
-        building_right:Boolean(item.building_right??item.baurecht??false),
+        building_right:Boolean(item.building_right??item.baurecht??item.leasehold??false),
         building_right_details:item.building_right_details||null,
         building_right_cost_chf_monthly:item.building_right_cost_chf_monthly??null,
         drive_minutes_othmarsingen:
@@ -1726,27 +1740,27 @@
         source:item.source||null,
         source_project_id:item.source_project_id||null,
         source_url:sourceUrl,
-        project_url:projectUrl,
+        project_url:projectUrl||sourceUrl,
         project_name:item.project_name||item.title||"Projekt ohne Namen",
         description:item.description||null,
-        municipality:item.municipality||item.location||null,
+        municipality:item.municipality||item.location||item.city||null,
         canton:item.canton||null,
-        postal_code:item.postal_code?String(item.postal_code):null,
+        postal_code:item.postal_code||item.zip?String(item.postal_code||item.zip):null,
         address:item.address||null,
         latitude:item.latitude??item.lat??null,
         longitude:item.longitude??item.lng??item.lon??null,
         developer:item.developer||null,
         marketer:item.marketer||null,
         architect:item.architect||null,
-        project_status:item.project_status||"unknown",
+        project_status:item.project_status||item.status||"unknown",
         status_details:item.status_details||null,
         property_type:item.property_type||null,
         expected_units:item.expected_units??null,
         expected_rooms:item.expected_rooms||null,
         expected_living_area_from_m2:item.expected_living_area_from_m2??null,
         expected_living_area_to_m2:item.expected_living_area_to_m2??null,
-        estimated_price_from_chf:item.estimated_price_from_chf??null,
-        estimated_price_to_chf:item.estimated_price_to_chf??null,
+        estimated_price_from_chf:item.estimated_price_from_chf??item.price_range_matching_units_chf?.min??null,
+        estimated_price_to_chf:item.estimated_price_to_chf??item.price_range_matching_units_chf?.max??null,
         expected_marketing_start:item.expected_marketing_start||null,
         expected_construction_start:item.expected_construction_start||null,
         expected_move_in:item.expected_move_in||null,
